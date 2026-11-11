@@ -1,6 +1,6 @@
 __pycache__/
 *.pyc
-paper_trades.csv
+*paper_trades.csv
 backtest*.json
 .pytest_cache/
 .cache/

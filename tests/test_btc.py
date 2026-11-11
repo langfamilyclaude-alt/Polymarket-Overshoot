@@ -81,3 +81,34 @@ def test_walk_forward_never_trades_the_training_days():
     df = pd.concat([rows().assign(s=86400 * d + 300) for d in range(10)], ignore_index=True)
     tr = bs.walk_forward(df, bs.BtcConfig(delayed=False), train_days=6)
     assert len(tr) == 0 or tr.s.min() >= 86400 * 6
+
+
+def test_live_estimate_matches_backtest_formula():
+    from overshoot import btc_live
+    w = [0.1, 0.8, 0.3]
+    df = rows(t=(120,), z=0.7)
+    expect = 1 / (1 + np.exp(-(bs._features(df, bs.BtcConfig()) @ np.array(w))))[0]
+    assert abs(btc_live.estimate_up(w, 0.495, 0.7) - expect) < 1e-9
+
+
+def test_live_btc_move_matches_backtest_formula():
+    from overshoot import btc_live
+    rng = np.random.default_rng(1)
+    start, t = 100_000, 150
+    sec = 70000 * np.exp(np.cumsum(rng.normal(0, 1e-4, 1800 + t)))
+    px = {start - 1800 + i: float(v) for i, v in enumerate(sec)}
+    base = sec[1800 - 60:1800].mean()
+    sig = np.diff(np.log(sec[:1800])).std() * 1e4
+    expect = (sec[1800 + t - 1] / base - 1) * 1e4 / (sig * np.sqrt(260 - t))
+    assert abs(btc_live.btc_move_z(px, start, start + t) - expect) < 1e-6
+    assert btc_live.btc_move_z({start: 1.0}, start, start + t) is None   # not enough history
+
+
+def test_live_pick_side_needs_margin_after_fees():
+    from overshoot import btc_live
+    cfg = bs.BtcConfig()
+    assert btc_live.pick_side(0.50, 0.50, 0.51, cfg) is None
+    side, price, edge, limit = btc_live.pick_side(0.70, 0.50, 0.51, cfg)
+    assert side == "Up" and abs(edge - (0.70 - 0.50 - 0.0175)) < 1e-9
+    assert abs(limit - (0.50 + edge - cfg.margin)) < 1e-9
+    assert btc_live.pick_side(0.30, 0.50, 0.51, cfg)[0] == "Down"

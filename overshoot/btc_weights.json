@@ -1,0 +1,13 @@
+{
+ "fitted_on": "12 days to 2026-11-11",
+ "features": [
+  "constant",
+  "logit(market price of Up)",
+  "btc move in units of typical remaining move"
+ ],
+ "weights": [
+  -0.0338,
+  0.8276,
+  0.3417
+ ]
+}

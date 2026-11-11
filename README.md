@@ -20,6 +20,7 @@ python -m overshoot arb-watch --minutes 20  # ...watched live over time
 python -m overshoot arb-backtest            # ...looked for in past trades
 python -m overshoot btc-backtest            # 5-minute Bitcoin Up/Down strategy
 python -m overshoot btc-backtest --history-days 40   # ...plus a 40-day check
+python -m overshoot btc-paper               # ...live, with pretend money
 python -m pytest                            # run the tests
 ```
 
@@ -244,7 +245,25 @@ the market. Fills assume $25 was available at the price a real trader paid.
 The fee formula is still my unverified reading. The "if fastest" row is an
 upper bound, not something achievable from a home connection.
 
+## Paper trading the Bitcoin strategy
+
+`python -m overshoot btc-paper` follows the live 5-minute Bitcoin markets and
+makes pretend trades by the same rules as the backtest. It sends no orders and
+needs no account. Each settled trade is appended to `btc_paper_trades.csv`.
+
+- Expect a trade in roughly 1 window in 8, so several per hour.
+- Run it for days, not minutes: at $25 a trade, results swing by about $25
+  per trade, so fewer than a few hundred trades says very little.
+- The backtest's 40-day result was about break-even. A paper run that agrees
+  with that is the system working as tested, not a fault.
+
+Useful options: `--minutes 120` to stop after two hours, `--btc stake_usd=5`
+for smaller pretend bets.
+
 ## Layout
+
+- `overshoot/btc_live.py` - live paper trading of the Bitcoin strategy
+- `overshoot/btc_weights.json` - the fitted estimate used by `btc-paper`
 
 - `overshoot/btc5m.py` - data for the 5-minute Bitcoin markets
 - `overshoot/btc_strategy.py` - the Bitcoin strategy and its backtest

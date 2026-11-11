@@ -8,6 +8,7 @@
     python -m overshoot arb-watch   # ...watched over time
     python -m overshoot arb-backtest
     python -m overshoot btc-backtest # 5-minute Bitcoin Up/Down markets
+    python -m overshoot btc-paper    # ...traded live with pretend money
 """
 from __future__ import annotations
 
@@ -482,6 +483,19 @@ def _btc_walk_forward(days: float, base, test_start: int, design_start: int) -> 
               f"{s['pnl']:+9.2f} {s['per_trade']:+9.2f} {s['days_up']:>3}/{s['days']:<3} {s['t_stat']:+7.1f}")
 
 
+def cmd_btc_paper(cfg: Config, args) -> None:
+    from . import btc_live
+    from .btc_strategy import BtcConfig
+    base = BtcConfig()
+    for item in args.btc:
+        name, _, value = item.partition("=")
+        if not hasattr(base, name):
+            raise SystemExit(f"unknown setting: {name}")
+        kind = type(getattr(base, name))
+        setattr(base, name, value.lower() in ("1", "true", "yes") if kind is bool else kind(value))
+    btc_live.run(base, args.minutes, args.log)
+
+
 def main() -> None:
     cfg = Config()
     ap = argparse.ArgumentParser(prog="overshoot", description=__doc__,
@@ -528,6 +542,11 @@ def main() -> None:
     p.add_argument("--btc", action="append", default=[], metavar="NAME=VALUE",
                    help="override a BtcConfig setting, e.g. --btc margin=0.08 (repeatable)")
     p.add_argument("--json")
+    p = sub.add_parser("btc-paper", help="5-minute Bitcoin strategy on live prices, pretend money")
+    p.add_argument("--minutes", type=float, help="stop after this long (default: run until Ctrl+C)")
+    p.add_argument("--log", default="btc_paper_trades.csv")
+    p.add_argument("--btc", action="append", default=[], metavar="NAME=VALUE",
+                   help="override a BtcConfig setting, e.g. --btc stake_usd=5 (repeatable)")
     args = ap.parse_args()
     for item in args.set:
         name, _, value = item.partition("=")
@@ -537,7 +556,7 @@ def main() -> None:
     {"scan": cmd_scan, "backtest": cmd_backtest, "paper": cmd_paper,
      "mm-backtest": cmd_mm_backtest, "arb-scan": cmd_arb_scan,
      "arb-watch": cmd_arb_watch, "arb-backtest": cmd_arb_backtest,
-     "btc-backtest": cmd_btc_backtest}[args.cmd](cfg, args)
+     "btc-backtest": cmd_btc_backtest, "btc-paper": cmd_btc_paper}[args.cmd](cfg, args)
 
 
 if __name__ == "__main__":
